@@ -1,0 +1,16 @@
+meter_id,name,address,zip_code,home_type,sq_footage,baseline_daily_kwh,enrolled_date
+M001,Mike K.,12 Oak Street,94025,House,2100,45,2025-01-15
+M002,Jane L.,7 Pine Avenue,94025,House,1800,38,2025-01-15
+M003,Amy R.,33 Cedar Blvd,94026,Condo,1200,32,2025-01-20
+M004,Tom S.,88 Maple Court,94025,House,2400,28,2025-01-20
+M005,Sara M.,5 Elm Drive,94027,Townhome,1600,35,2025-02-01
+M006,Wei C.,19 Birch Lane,94026,House,2200,40,2025-02-01
+M007,Lena P.,42 Walnut Way,94025,Condo,900,30,2025-02-10
+M008,Dan H.,71 Spruce Street,94027,Apartment,850,25,2025-02-10
+M009,Rita V.,3 Aspen Road,94025,House,1900,33,2025-02-15
+M010,Paul O.,55 Willow Close,94026,House,2600,42,2025-02-15
+M011,Nora B.,14 Poplar Avenue,94025,Townhome,1400,27,2025-03-01
+M012,Deep B.,28 Sycamore Lane,94025,House,1750,30,2025-03-01
+M013,Greg T.,9 Alder Street,94027,House,2000,35,2025-03-05
+M014,Mia F.,61 Hazel Court,94026,Condo,1100,22,2025-03-05
+M015,Chris L.,24 Beech Blvd,94025,House,2800,48,2025-03-10

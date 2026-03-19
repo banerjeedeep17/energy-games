@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Bidgely Admin Panel</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f1117;color:#e8eaf0;min-height:100vh}
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--card:#21263a;--border:#2e3450;
+  --accent:#4f8ef7;--green:#34d399;--orange:#fb923c;--purple:#a78bfa;
+  --red:#f87171;--yellow:#fbbf24;--text:#e8eaf0;--muted:#8891b0;
+  --gradient:linear-gradient(135deg,#4f8ef7 0%,#a78bfa 100%);
+}
+
+/* ── Login ── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:44px 36px;max-width:380px;width:100%;text-align:center}
+.logo{margin:0 auto 18px;display:flex;justify-content:center}
+.logo img{width:160px;height:auto;filter:brightness(0) invert(1);opacity:.9}
+.login-box h1{font-size:22px;font-weight:800;margin-bottom:6px}
+.login-box p{color:var(--muted);font-size:13px;margin-bottom:28px}
+.form-group{text-align:left;margin-bottom:14px}
+.form-group label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.form-group input{width:100%;padding:11px 14px;border-radius:9px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:14px;outline:none;transition:border-color .15s}
+.form-group input:focus{border-color:var(--accent)}
+.btn-primary{width:100%;padding:12px;border-radius:9px;font-size:14px;font-weight:700;background:var(--gradient);color:#fff;border:none;cursor:pointer;margin-top:6px;transition:opacity .15s}
+.btn-primary:hover{opacity:.85}
+.login-error{color:var(--red);font-size:13px;margin-top:12px;display:none}
+.default-creds{margin-top:20px;padding:12px;background:rgba(79,142,247,.08);border:1px solid rgba(79,142,247,.2);border-radius:8px;font-size:12px;color:var(--muted);text-align:left}
+.default-creds strong{color:var(--accent)}
+
+/* ── Admin App ── */
+#admin-app{display:none}
+.admin-header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;justify-content:space-between}
+.admin-logo{display:flex;align-items:center}
+.admin-logo img{height:28px;width:auto;filter:brightness(0) invert(1);opacity:.9}
+.header-actions{display:flex;align-items:center;gap:12px}
+.btn-logout{padding:7px 16px;border-radius:8px;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:13px;cursor:pointer;transition:all .15s}
+.btn-logout:hover{color:var(--text);border-color:var(--accent)}
+.btn-view{padding:7px 16px;border-radius:8px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:var(--accent);font-size:13px;cursor:pointer;text-decoration:none;font-weight:600;transition:opacity .15s}
+.btn-view:hover{opacity:.8}
+
+.admin-body{max-width:1000px;margin:0 auto;padding:32px 24px 64px}
+.page-heading{font-size:22px;font-weight:800;margin-bottom:6px}
+.page-sub{color:var(--muted);font-size:14px;margin-bottom:28px}
+
+/* ── Data Summary ── */
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px}
+.summary-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.sc-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px}
+.sc-value{font-size:24px;font-weight:800}
+.sc-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.sc-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
+
+/* ── Upload Cards ── */
+.upload-section{margin-bottom:20px}
+.upload-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.upload-header{padding:18px 20px;display:flex;align-items:flex-start;gap:14px;cursor:pointer;user-select:none}
+.upload-header:hover{background:rgba(255,255,255,.02)}
+.uh-icon{font-size:24px;flex-shrink:0;margin-top:2px}
+.uh-title{font-size:15px;font-weight:700;margin-bottom:3px}
+.uh-desc{font-size:12px;color:var(--muted);line-height:1.5}
+.uh-status{margin-left:auto;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.status-badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700}
+.status-ok{background:rgba(52,211,153,.15);color:var(--green);border:1px solid rgba(52,211,153,.3)}
+.status-empty{background:rgba(139,145,176,.1);color:var(--muted);border:1px solid var(--border)}
+.status-error{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+.upload-body{padding:0 20px 20px;border-top:1px solid var(--border)}
+.upload-body.collapsed{display:none}
+
+/* ── Format Guide ── */
+.format-guide{margin:14px 0;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:9px}
+.fg-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.fg-cols{display:flex;flex-wrap:wrap;gap:6px}
+.fg-col{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;font-family:monospace;color:var(--accent)}
+.fg-col.required{border-color:rgba(79,142,247,.4)}
+.fg-col.optional{color:var(--muted);border-style:dashed}
+
+/* ── File Drop Zone ── */
+.dropzone{border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;margin:14px 0;position:relative}
+.dropzone:hover,.dropzone.dragover{border-color:var(--accent);background:rgba(79,142,247,.05)}
+.dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-icon{font-size:28px;margin-bottom:8px}
+.dz-text{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
+.dz-sub{font-size:12px;color:var(--muted)}
+
+/* ── Preview Table ── */
+.preview-wrap{margin-top:14px}
+.preview-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.preview-table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+.preview-table{width:100%;border-collapse:collapse;font-size:12px}
+.preview-table th{background:var(--surface);padding:7px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;white-space:nowrap}
+.preview-table td{padding:7px 12px;border-top:1px solid var(--border);color:var(--text);white-space:nowrap}
+.preview-table tr:hover td{background:rgba(255,255,255,.02)}
+.upload-actions{display:flex;gap:10px;margin-top:14px;align-items:center}
+.btn-upload{padding:9px 20px;border-radius:8px;font-size:13px;font-weight:700;background:var(--gradient);color:#fff;border:none;cursor:pointer;transition:opacity .15s}
+.btn-upload:hover{opacity:.85}
+.btn-upload:disabled{opacity:.4;cursor:not-allowed}
+.btn-clear-file{padding:9px 16px;border-radius:8px;font-size:13px;background:var(--card);border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s}
+.btn-clear-file:hover{color:var(--red);border-color:var(--red)}
+.upload-msg{font-size:12px;color:var(--muted)}
+.upload-msg.ok{color:var(--green)}
+.upload-msg.err{color:var(--red)}
+
+/* ── Danger Zone ── */
+.danger-zone{background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.2);border-radius:12px;padding:18px;margin-top:28px}
+.dz-title{font-size:14px;font-weight:700;color:var(--red);margin-bottom:6px}
+.dz-desc{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+.btn-danger{padding:9px 20px;border-radius:8px;font-size:13px;font-weight:700;background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3);cursor:pointer;transition:opacity .15s}
+.btn-danger:hover{opacity:.8}
+
+/* ── Games Management ── */
+.games-section{margin-top:28px}
+.games-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.games-header h2{font-size:16px;font-weight:800}
+.games-header p{font-size:12px;color:var(--muted);margin-top:2px}
+.btn-add-game{padding:9px 18px;border-radius:9px;font-size:13px;font-weight:700;background:var(--gradient);color:#fff;border:none;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.btn-add-game:hover{opacity:.85}
+.game-card{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden;transition:border-color .15s}
+.game-card:hover{border-color:rgba(79,142,247,.4)}
+.game-view{display:flex;align-items:flex-start;gap:14px;padding:16px 18px}
+.gv-icon{font-size:26px;flex-shrink:0;margin-top:2px}
+.gv-body{flex:1;min-width:0}
+.gv-title{font-size:14px;font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+.gv-desc{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px}
+.gv-meta{display:flex;gap:10px;flex-wrap:wrap}
+.gv-tag{font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 8px}
+.gv-tag strong{color:var(--text)}
+.gv-actions{display:flex;flex-direction:column;gap:7px;flex-shrink:0}
+.btn-edit-game{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:700;background:rgba(79,142,247,.12);color:var(--accent);border:1px solid rgba(79,142,247,.3);cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.btn-edit-game:hover{opacity:.8}
+.btn-del-game{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:700;background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.25);cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.btn-del-game:hover{opacity:.8}
+.active-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer;padding:4px 0}
+.toggle-switch{width:32px;height:18px;border-radius:99px;background:var(--border);position:relative;transition:background .2s;flex-shrink:0}
+.toggle-switch.on{background:var(--green)}
+.toggle-switch::after{content:'';position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .2s}
+.toggle-switch.on::after{left:17px}
+.active-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px}
+.active-badge.on{background:rgba(52,211,153,.15);color:var(--green);border:1px solid rgba(52,211,153,.3)}
+.active-badge.off{background:rgba(139,145,176,.1);color:var(--muted);border:1px solid var(--border)}
+
+/* ── Game Edit Form ── */
+.game-edit-form{padding:18px;border-top:1px solid var(--border);background:rgba(79,142,247,.03)}
+.gef-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.gef-full{grid-column:1/-1}
+.gef-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.gef-input{width:100%;padding:9px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;outline:none;transition:border-color .15s}
+.gef-input:focus{border-color:var(--accent)}
+.gef-input[type=number]{-moz-appearance:textfield}
+.gef-select{width:100%;padding:9px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;outline:none;appearance:none;cursor:pointer}
+.gef-textarea{width:100%;padding:9px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;outline:none;resize:vertical;min-height:64px;font-family:inherit}
+.gef-actions{display:flex;gap:10px;align-items:center;margin-top:4px}
+.btn-save-game{padding:9px 20px;border-radius:8px;font-size:13px;font-weight:700;background:var(--gradient);color:#fff;border:none;cursor:pointer;transition:opacity .15s}
+.btn-save-game:hover{opacity:.85}
+.btn-cancel-game{padding:9px 16px;border-radius:8px;font-size:13px;background:var(--card);border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s}
+.btn-cancel-game:hover{color:var(--text)}
+.gef-msg{font-size:12px;color:var(--green)}
+
+/* ── New Game Form ── */
+#new-game-panel{display:none;background:var(--card);border:1px solid rgba(79,142,247,.4);border-radius:12px;padding:20px;margin-bottom:16px}
+#new-game-panel h3{font-size:14px;font-weight:700;margin-bottom:16px;color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- ════════════════ LOGIN ════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="logo"><img src="bidgely-logo.svg" alt="Bidgely"/></div>
+    <h1>Admin Panel</h1>
+    <p>Upload meter enrollment and consumption data for the Bidgely Energy Games.</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="un" placeholder="admin" value="admin"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Sign In →</button>
+    <div class="login-error" id="login-err">Incorrect username or password.</div>
+    <div class="default-creds">
+      <strong>Default credentials</strong><br>
+      Username: <strong>admin</strong> &nbsp;·&nbsp; Password: <strong>bidgely2026</strong><br>
+      <span style="font-size:11px;margin-top:4px;display:block">You can change the password after logging in.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ ADMIN APP ════════════════ -->
+<div id="admin-app">
+  <header class="admin-header">
+    <div class="admin-logo"><img src="bidgely-logo.svg" alt="Bidgely"/> <span style="margin-left:10px;font-size:13px;color:var(--muted);font-weight:600">Admin</span></div>
+    <div class="header-actions">
+      <a href="index.html" class="btn-view">👁 View Homeowner App</a>
+      <button class="btn-logout" onclick="doLogout()">Log Out</button>
+    </div>
+  </header>
+
+  <div class="admin-body">
+    <div class="page-heading">Data Management</div>
+    <div class="page-sub">Upload CSV files to power the gamification dashboard for all homeowners.</div>
+
+    <!-- Summary -->
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="sc-label">Enrolled Homes</div>
+        <div class="sc-value" id="count-homes">—</div>
+        <div class="sc-sub" id="status-enr"><span class="sc-dot" style="background:var(--muted)"></span>No file uploaded</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Consumption Rows</div>
+        <div class="sc-value" id="count-cons">—</div>
+        <div class="sc-sub" id="status-cons"><span class="sc-dot" style="background:var(--muted)"></span>No file uploaded</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Appliance Rows</div>
+        <div class="sc-value" id="count-ac">—</div>
+        <div class="sc-sub" id="status-ac"><span class="sc-dot" style="background:var(--muted)"></span>No file uploaded</div>
+      </div>
+    </div>
+
+    <!-- ── FILE 1: Enrollment ── -->
+    <div class="upload-section">
+      <div class="upload-card">
+        <div class="upload-header" onclick="toggleSection('enr')">
+          <div class="uh-icon">🏠</div>
+          <div>
+            <div class="uh-title">File 1 — Meter / Home Enrollment</div>
+            <div class="uh-desc">One row per home. Contains homeowner name, address, meter ID, home type, and energy baseline.</div>
+          </div>
+          <div class="uh-status">
+            <span class="status-badge status-empty" id="badge-enr">Not uploaded</span>
+            <span style="font-size:18px;color:var(--muted)" id="arrow-enr">▼</span>
+          </div>
+        </div>
+        <div class="upload-body" id="body-enr">
+          <div class="format-guide">
+            <div class="fg-title">Required CSV columns</div>
+            <div class="fg-cols">
+              <span class="fg-col required">meter_id</span>
+              <span class="fg-col required">name</span>
+              <span class="fg-col required">address</span>
+              <span class="fg-col required">baseline_daily_kwh</span>
+              <span class="fg-col optional">zip_code</span>
+              <span class="fg-col optional">home_type</span>
+              <span class="fg-col optional">sq_footage</span>
+              <span class="fg-col optional">enrolled_date</span>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:var(--muted)">Blue = required &nbsp;·&nbsp; Dashed = optional &nbsp;·&nbsp; meter_id must match across all files</div>
+          </div>
+          <div class="dropzone" id="dz-enr">
+            <input type="file" accept=".csv" onchange="handleFile(event,'enr')"/>
+            <div class="dz-icon">📂</div>
+            <div class="dz-text">Drop enrollment.csv here or click to browse</div>
+            <div class="dz-sub">CSV file only · any number of rows</div>
+          </div>
+          <div class="preview-wrap" id="preview-enr" style="display:none">
+            <div class="preview-title"><span>Preview (first 5 rows)</span><span id="row-count-enr" style="color:var(--green);font-weight:700"></span></div>
+            <div class="preview-table-wrap"><table class="preview-table" id="table-enr"></table></div>
+          </div>
+          <div class="upload-actions">
+            <button class="btn-upload" id="btn-save-enr" onclick="saveData('enr')" disabled>Save to Dashboard</button>
+            <button class="btn-clear-file" onclick="clearFile('enr')">✕ Clear</button>
+            <span class="upload-msg" id="msg-enr"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FILE 2: Consumption ── -->
+    <div class="upload-section">
+      <div class="upload-card">
+        <div class="upload-header" onclick="toggleSection('cons')">
+          <div class="uh-icon">⚡</div>
+          <div>
+            <div class="uh-title">File 2 — Daily Consumption History</div>
+            <div class="uh-desc">One row per meter per day. Total kWh consumed each day per home, going back as many months as available.</div>
+          </div>
+          <div class="uh-status">
+            <span class="status-badge status-empty" id="badge-cons">Not uploaded</span>
+            <span style="font-size:18px;color:var(--muted)" id="arrow-cons">▼</span>
+          </div>
+        </div>
+        <div class="upload-body collapsed" id="body-cons">
+          <div class="format-guide">
+            <div class="fg-title">Required CSV columns</div>
+            <div class="fg-cols">
+              <span class="fg-col required">meter_id</span>
+              <span class="fg-col required">date</span>
+              <span class="fg-col required">total_kwh</span>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:var(--muted)">date format: YYYY-MM-DD &nbsp;·&nbsp; total_kwh is a decimal number (e.g. 28.4)</div>
+          </div>
+          <div class="dropzone" id="dz-cons">
+            <input type="file" accept=".csv" onchange="handleFile(event,'cons')"/>
+            <div class="dz-icon">📂</div>
+            <div class="dz-text">Drop consumption.csv here or click to browse</div>
+            <div class="dz-sub">CSV file only · typically thousands of rows</div>
+          </div>
+          <div class="preview-wrap" id="preview-cons" style="display:none">
+            <div class="preview-title"><span>Preview (first 5 rows)</span><span id="row-count-cons" style="color:var(--green);font-weight:700"></span></div>
+            <div class="preview-table-wrap"><table class="preview-table" id="table-cons"></table></div>
+          </div>
+          <div class="upload-actions">
+            <button class="btn-upload" id="btn-save-cons" onclick="saveData('cons')" disabled>Save to Dashboard</button>
+            <button class="btn-clear-file" onclick="clearFile('cons')">✕ Clear</button>
+            <span class="upload-msg" id="msg-cons"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FILE 3: AC / Appliances ── -->
+    <div class="upload-section">
+      <div class="upload-card">
+        <div class="upload-header" onclick="toggleSection('ac')">
+          <div class="uh-icon">🌡️</div>
+          <div>
+            <div class="uh-title">File 3 — Appliance & AC Breakdown</div>
+            <div class="uh-desc">One row per meter per day. Disaggregated appliance usage (AC, heating, washer, dryer, EV) and peak vs. off-peak split — the fuel for all game mechanics.</div>
+          </div>
+          <div class="uh-status">
+            <span class="status-badge status-empty" id="badge-ac">Not uploaded</span>
+            <span style="font-size:18px;color:var(--muted)" id="arrow-ac">▼</span>
+          </div>
+        </div>
+        <div class="upload-body collapsed" id="body-ac">
+          <div class="format-guide">
+            <div class="fg-title">Required CSV columns</div>
+            <div class="fg-cols">
+              <span class="fg-col required">meter_id</span>
+              <span class="fg-col required">date</span>
+              <span class="fg-col required">peak_kwh</span>
+              <span class="fg-col required">offpeak_kwh</span>
+              <span class="fg-col optional">ac_kwh</span>
+              <span class="fg-col optional">heating_kwh</span>
+              <span class="fg-col optional">washer_kwh</span>
+              <span class="fg-col optional">dryer_kwh</span>
+              <span class="fg-col optional">ev_kwh</span>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:var(--muted)">Missing appliance columns default to 0 &nbsp;·&nbsp; date format: YYYY-MM-DD</div>
+          </div>
+          <div class="dropzone" id="dz-ac">
+            <input type="file" accept=".csv" onchange="handleFile(event,'ac')"/>
+            <div class="dz-icon">📂</div>
+            <div class="dz-text">Drop ac-appliances.csv here or click to browse</div>
+            <div class="dz-sub">CSV file only · typically thousands of rows</div>
+          </div>
+          <div class="preview-wrap" id="preview-ac" style="display:none">
+            <div class="preview-title"><span>Preview (first 5 rows)</span><span id="row-count-ac" style="color:var(--green);font-weight:700"></span></div>
+            <div class="preview-table-wrap"><table class="preview-table" id="table-ac"></table></div>
+          </div>
+          <div class="upload-actions">
+            <button class="btn-upload" id="btn-save-ac" onclick="saveData('ac')" disabled>Save to Dashboard</button>
+            <button class="btn-clear-file" onclick="clearFile('ac')">✕ Clear</button>
+            <span class="upload-msg" id="msg-ac"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Games Management ── -->
+    <div class="games-section">
+      <div class="games-header">
+        <div>
+          <h2>🎮 Games Management</h2>
+          <p>Add, edit, or disable challenges shown to homeowners on the dashboard.</p>
+        </div>
+        <button class="btn-add-game" onclick="openNewGamePanel()">+ Add New Game</button>
+      </div>
+
+      <!-- New game form (hidden by default) -->
+      <div id="new-game-panel">
+        <h3>✨ New Game</h3>
+        <div class="gef-grid">
+          <div>
+            <div class="gef-label">Icon (emoji)</div>
+            <input class="gef-input" id="ng-icon" placeholder="❄️" maxlength="4"/>
+          </div>
+          <div>
+            <div class="gef-label">Difficulty</div>
+            <select class="gef-select" id="ng-diff">
+              <option>Easy</option><option selected>Medium</option><option>Hard</option><option>Community</option><option>1v1</option>
+            </select>
+          </div>
+          <div class="gef-full">
+            <div class="gef-label">Game Title</div>
+            <input class="gef-input" id="ng-title" placeholder="e.g. AC Cool-Down Week"/>
+          </div>
+          <div class="gef-full">
+            <div class="gef-label">Description</div>
+            <textarea class="gef-textarea" id="ng-desc" placeholder="What homeowners need to do to complete this challenge…"></textarea>
+          </div>
+          <div>
+            <div class="gef-label">Metric tracked</div>
+            <select class="gef-select" id="ng-metric">
+              <option value="ac_kwh">AC kWh / day</option>
+              <option value="offpeak_pct">Off-Peak %</option>
+              <option value="dryer_kwh">Dryer loads shifted</option>
+              <option value="total_kwh">Total kWh reduction</option>
+              <option value="carbon">Carbon saved (kg)</option>
+              <option value="community">Community / team</option>
+              <option value="duel">1v1 Duel</option>
+            </select>
+          </div>
+          <div>
+            <div class="gef-label">Target value</div>
+            <input class="gef-input" id="ng-target" type="number" placeholder="e.g. 8"/>
+          </div>
+          <div>
+            <div class="gef-label">Duration (days)</div>
+            <input class="gef-input" id="ng-duration" type="number" placeholder="7" value="7"/>
+          </div>
+          <div>
+            <div class="gef-label">Points reward</div>
+            <input class="gef-input" id="ng-points" type="number" placeholder="800" value="500"/>
+          </div>
+          <div class="gef-full">
+            <div class="gef-label">Time label shown to user</div>
+            <input class="gef-input" id="ng-time" placeholder="e.g. 3 days left · or · Starts Friday"/>
+          </div>
+        </div>
+        <div class="gef-actions">
+          <button class="btn-save-game" onclick="saveNewGame()">Save Game</button>
+          <button class="btn-cancel-game" onclick="closeNewGamePanel()">Cancel</button>
+          <span class="gef-msg" id="ng-msg"></span>
+        </div>
+      </div>
+
+      <!-- Existing games list -->
+      <div id="games-list"></div>
+    </div>
+
+    <!-- ── Change Password ── -->
+    <div class="upload-card" style="margin-top:28px;padding:18px 20px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">🔑 Change Admin Password</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input type="password" id="new-pw" placeholder="New password" style="padding:9px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;width:200px;outline:none"/>
+        <input type="password" id="new-pw2" placeholder="Confirm password" style="padding:9px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;width:200px;outline:none"/>
+        <button class="btn-upload" style="width:auto" onclick="changePassword()">Update Password</button>
+        <span id="pw-msg" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+    </div>
+
+    <!-- ── Danger Zone ── -->
+    <div class="danger-zone">
+      <div class="dz-title">⚠️ Danger Zone</div>
+      <div class="dz-desc">Clearing all data will remove the uploaded enrollment, consumption, and appliance files from the dashboard. The homeowner app will revert to sample data. This cannot be undone.</div>
+      <button class="btn-danger" onclick="clearAllData()">Clear All Uploaded Data</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════
+const DEFAULT_PW='bidgely2026';
+function getPassword(){return localStorage.getItem('bidgely_admin_pw')||DEFAULT_PW}
+
+function doLogin(){
+  const un=document.getElementById('un').value.trim();
+  const pw=document.getElementById('pw').value;
+  const err=document.getElementById('login-err');
+  if(un==='admin'&&pw===getPassword()){
+    localStorage.setItem('bidgely_admin_auth','1');
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('admin-app').style.display='block';
+    updateSummary();
+    renderGames();
+  } else {
+    err.style.display='block';
+    document.getElementById('pw').value='';
+    setTimeout(()=>err.style.display='none',3000);
+  }
+}
+
+function doLogout(){
+  localStorage.removeItem('bidgely_admin_auth');
+  document.getElementById('admin-app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('pw').value='';
+}
+
+function changePassword(){
+  const p1=document.getElementById('new-pw').value;
+  const p2=document.getElementById('new-pw2').value;
+  const msg=document.getElementById('pw-msg');
+  if(!p1){msg.textContent='Enter a new password.';msg.style.color='var(--red)';return}
+  if(p1!==p2){msg.textContent='Passwords do not match.';msg.style.color='var(--red)';return}
+  localStorage.setItem('bidgely_admin_pw',p1);
+  msg.textContent='Password updated ✓';msg.style.color='var(--green)';
+  document.getElementById('new-pw').value='';document.getElementById('new-pw2').value='';
+  setTimeout(()=>msg.textContent='',3000);
+}
+
+// ══════════════════════════════════════════════
+//  SECTION TOGGLE
+// ══════════════════════════════════════════════
+function toggleSection(key){
+  const body=document.getElementById(`body-${key}`);
+  const arrow=document.getElementById(`arrow-${key}`);
+  const collapsed=body.classList.toggle('collapsed');
+  arrow.textContent=collapsed?'▼':'▲';
+}
+
+// ══════════════════════════════════════════════
+//  FILE HANDLING
+// ══════════════════════════════════════════════
+const PARSED={enr:null,cons:null,ac:null};
+const LSKEYS={enr:'bidgely_enrollment',cons:'bidgely_consumption',ac:'bidgely_ac_data'};
+const REQUIRED={
+  enr:['meter_id','name','address','baseline_daily_kwh'],
+  cons:['meter_id','date','total_kwh'],
+  ac:['meter_id','date','peak_kwh','offpeak_kwh']
+};
+
+function handleFile(evt,key){
+  const file=evt.target.files[0];
+  if(!file) return;
+  const msg=document.getElementById(`msg-${key}`);
+  msg.textContent='Parsing...';msg.className='upload-msg';
+
+  Papa.parse(file,{
+    header:true,skipEmptyLines:true,
+    complete(results){
+      const data=results.data;
+      const missing=REQUIRED[key].filter(c=>!results.meta.fields.includes(c));
+      if(missing.length){
+        msg.textContent=`Missing required columns: ${missing.join(', ')}`;
+        msg.className='upload-msg err';
+        return;
+      }
+      PARSED[key]=data;
+      renderPreview(key,data,results.meta.fields);
+      document.getElementById(`btn-save-${key}`).disabled=false;
+      msg.textContent=`${data.length.toLocaleString()} rows ready to save.`;
+      msg.className='upload-msg ok';
+      setBadge(key,'ready','Ready to save');
+    },
+    error(err){
+      msg.textContent='Parse error: '+err.message;
+      msg.className='upload-msg err';
+    }
+  });
+}
+
+function renderPreview(key,data,fields){
+  const wrap=document.getElementById(`preview-${key}`);
+  const tbl=document.getElementById(`table-${key}`);
+  const cnt=document.getElementById(`row-count-${key}`);
+  wrap.style.display='block';
+  cnt.textContent=`${data.length.toLocaleString()} rows total`;
+
+  const displayFields=fields.slice(0,8);
+  const head=`<thead><tr>${displayFields.map(f=>`<th>${f}</th>`).join('')}${fields.length>8?'<th>…</th>':''}</tr></thead>`;
+  const rows=data.slice(0,5).map(r=>`<tr>${displayFields.map(f=>`<td>${r[f]??''}</td>`).join('')}${fields.length>8?'<td style="color:var(--muted)">…</td>':''}</tr>`).join('');
+  tbl.innerHTML=head+`<tbody>${rows}</tbody>`;
+}
+
+function saveData(key){
+  if(!PARSED[key]) return;
+  // Clear sample flag if present
+  localStorage.removeItem('bidgely_is_sample');
+  localStorage.setItem(LSKEYS[key],JSON.stringify(PARSED[key]));
+  const msg=document.getElementById(`msg-${key}`);
+  msg.textContent=`✓ Saved ${PARSED[key].length.toLocaleString()} rows to dashboard!`;
+  msg.className='upload-msg ok';
+  setBadge(key,'ok',`${PARSED[key].length.toLocaleString()} rows loaded`);
+  updateSummary();
+}
+
+function clearFile(key){
+  PARSED[key]=null;
+  document.getElementById(`preview-${key}`).style.display='none';
+  document.getElementById(`btn-save-${key}`).disabled=true;
+  document.getElementById(`msg-${key}`).textContent='';
+  document.getElementById(`msg-${key}`).className='upload-msg';
+  // Reset file input
+  const dz=document.getElementById(`dz-${key}`);
+  const inp=dz.querySelector('input[type=file]');
+  inp.value='';
+  setBadge(key,'empty','Not uploaded');
+}
+
+function clearAllData(){
+  if(!confirm('Are you sure? This will clear all uploaded data and the homeowner app will revert to sample data.')) return;
+  ['bidgely_enrollment','bidgely_consumption','bidgely_ac_data','bidgely_is_sample','bidgely_selected','bidgely_meter'].forEach(k=>localStorage.removeItem(k));
+  ['enr','cons','ac'].forEach(k=>{PARSED[k]=null;clearFile(k);});
+  updateSummary();
+  alert('All data cleared. The homeowner app will now use sample data.');
+}
+
+// ══════════════════════════════════════════════
+//  STATUS BADGES & SUMMARY
+// ══════════════════════════════════════════════
+function setBadge(key,state,label){
+  const badge=document.getElementById(`badge-${key}`);
+  badge.textContent=label;
+  badge.className='status-badge status-'+(state==='ok'?'ok':state==='ready'?'ok':state==='error'?'error':'empty');
+}
+
+function updateSummary(){
+  const enr=JSON.parse(localStorage.getItem('bidgely_enrollment')||'[]');
+  const cons=JSON.parse(localStorage.getItem('bidgely_consumption')||'[]');
+  const ac=JSON.parse(localStorage.getItem('bidgely_ac_data')||'[]');
+  const isSample=localStorage.getItem('bidgely_is_sample')==='true';
+
+  document.getElementById('count-homes').textContent=enr.length||'0';
+  document.getElementById('count-cons').textContent=cons.length?cons.length.toLocaleString():'0';
+  document.getElementById('count-ac').textContent=ac.length?ac.length.toLocaleString():'0';
+
+  const dot=isSample?'var(--orange)':'var(--green)';
+  const label=isSample?' Sample data (not uploaded)':`  Real data`;
+  document.getElementById('status-enr').innerHTML=`<span class="sc-dot" style="background:${enr.length?dot:'var(--muted)'}"></span>${enr.length?(isSample?'Sample data':'Real data loaded'):'Not loaded'}`;
+  document.getElementById('status-cons').innerHTML=`<span class="sc-dot" style="background:${cons.length?dot:'var(--muted)'}"></span>${cons.length?(isSample?'Sample data':'Real data loaded'):'Not loaded'}`;
+  document.getElementById('status-ac').innerHTML=`<span class="sc-dot" style="background:${ac.length?dot:'var(--muted)'}"></span>${ac.length?(isSample?'Sample data':'Real data loaded'):'Not loaded'}`;
+
+  // Update badges from localStorage state
+  if(enr.length&&!isSample) setBadge('enr','ok',`${enr.length} homes loaded`);
+  if(cons.length&&!isSample) setBadge('cons','ok',`${cons.length.toLocaleString()} rows loaded`);
+  if(ac.length&&!isSample) setBadge('ac','ok',`${ac.length.toLocaleString()} rows loaded`);
+}
+
+// ══════════════════════════════════════════════
+//  GAMES MANAGEMENT
+// ══════════════════════════════════════════════
+const DEFAULT_GAMES=[
+  {id:'g1',icon:'❄️',title:'AC Cool-Down Week',description:'Keep your AI-detected AC usage below 8 kWh/day for 7 consecutive days.',metric:'ac_kwh',target:8,duration:7,points:800,difficulty:'Medium',time:'3 days left',active:true},
+  {id:'g2',icon:'🌙',title:'Night Shift your Dryer',description:'Bidgely detected your dryer. Shift loads after 9 PM for 5 days this week.',metric:'dryer_kwh',target:5,duration:7,points:400,difficulty:'Easy',time:'2 days left',active:true},
+  {id:'g3',icon:'🏙️',title:'Neighborhood Showdown',description:'Your neighborhood vs. Maple Grove — which community saves the most energy this month?',metric:'community',target:0,duration:30,points:1500,difficulty:'Community',time:'14 days left',active:true},
+  {id:'g4',icon:'🌿',title:'Carbon-Neutral Weekend',description:'Achieve net-zero carbon impact over a Saturday + Sunday by shifting loads and reducing heating/cooling.',metric:'carbon',target:100,duration:2,points:2000,difficulty:'Hard',time:'Starts Fri',active:true},
+  {id:'g5',icon:'🤺',title:'Duel: You vs. Neighbor',description:'Head-to-head 7-day energy duel with the household ranked just above you. First to 15% reduction wins.',metric:'duel',target:15,duration:7,points:600,difficulty:'1v1',time:'7 days',active:true},
+];
+
+function getGames(){
+  const stored=localStorage.getItem('bidgely_games');
+  if(stored) return JSON.parse(stored);
+  // seed defaults on first access
+  localStorage.setItem('bidgely_games',JSON.stringify(DEFAULT_GAMES));
+  return DEFAULT_GAMES;
+}
+function saveGames(games){localStorage.setItem('bidgely_games',JSON.stringify(games))}
+
+function renderGames(){
+  const games=getGames();
+  const list=document.getElementById('games-list');
+  if(!games.length){
+    list.innerHTML='<div style="text-align:center;padding:32px;color:var(--muted);font-size:14px">No games yet. Click "+ Add New Game" to create the first one.</div>';
+    return;
+  }
+  list.innerHTML=games.map(g=>`
+    <div class="game-card" id="card-${g.id}">
+      <div class="game-view">
+        <div class="gv-icon">${g.icon||'🎯'}</div>
+        <div class="gv-body">
+          <div class="gv-title">
+            ${g.title}
+            <span class="active-badge ${g.active?'on':'off'}">${g.active?'Active':'Paused'}</span>
+          </div>
+          <div class="gv-desc">${g.description}</div>
+          <div class="gv-meta">
+            <span class="gv-tag">⭐ <strong>${g.points}</strong> pts</span>
+            <span class="gv-tag">⏱ <strong>${g.time||g.duration+' days'}</strong></span>
+            <span class="gv-tag">📊 <strong>${metricLabel(g.metric)}</strong></span>
+            <span class="gv-tag">🎚 <strong>${g.difficulty}</strong></span>
+            ${g.target?`<span class="gv-tag">🎯 Target: <strong>${g.target}</strong></span>`:''}
+          </div>
+        </div>
+        <div class="gv-actions">
+          <button class="btn-edit-game" onclick="openEditForm('${g.id}')">✏️ Edit</button>
+          <label class="active-toggle" onclick="toggleActive('${g.id}')">
+            <div class="toggle-switch ${g.active?'on':''}"></div>
+            <span>${g.active?'Enabled':'Paused'}</span>
+          </label>
+          <button class="btn-del-game" onclick="deleteGame('${g.id}')">🗑 Delete</button>
+        </div>
+      </div>
+      <div class="game-edit-form" id="form-${g.id}" style="display:none">
+        <div class="gef-grid">
+          <div>
+            <div class="gef-label">Icon (emoji)</div>
+            <input class="gef-input" id="ei-icon-${g.id}" value="${g.icon||''}" maxlength="4"/>
+          </div>
+          <div>
+            <div class="gef-label">Difficulty</div>
+            <select class="gef-select" id="ei-diff-${g.id}">
+              ${['Easy','Medium','Hard','Community','1v1'].map(d=>`<option ${d===g.difficulty?'selected':''}>${d}</option>`).join('')}
+            </select>
+          </div>
+          <div class="gef-full">
+            <div class="gef-label">Game Title</div>
+            <input class="gef-input" id="ei-title-${g.id}" value="${g.title}"/>
+          </div>
+          <div class="gef-full">
+            <div class="gef-label">Description</div>
+            <textarea class="gef-textarea" id="ei-desc-${g.id}">${g.description}</textarea>
+          </div>
+          <div>
+            <div class="gef-label">Metric tracked</div>
+            <select class="gef-select" id="ei-metric-${g.id}">
+              ${[['ac_kwh','AC kWh / day'],['offpeak_pct','Off-Peak %'],['dryer_kwh','Dryer loads shifted'],['total_kwh','Total kWh reduction'],['carbon','Carbon saved (kg)'],['community','Community / team'],['duel','1v1 Duel']].map(([v,l])=>`<option value="${v}" ${v===g.metric?'selected':''}>${l}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div class="gef-label">Target value</div>
+            <input class="gef-input" id="ei-target-${g.id}" type="number" value="${g.target||''}"/>
+          </div>
+          <div>
+            <div class="gef-label">Duration (days)</div>
+            <input class="gef-input" id="ei-duration-${g.id}" type="number" value="${g.duration||7}"/>
+          </div>
+          <div>
+            <div class="gef-label">Points reward</div>
+            <input class="gef-input" id="ei-points-${g.id}" type="number" value="${g.points}"/>
+          </div>
+          <div class="gef-full">
+            <div class="gef-label">Time label shown to user</div>
+            <input class="gef-input" id="ei-time-${g.id}" value="${g.time||''}"/>
+          </div>
+        </div>
+        <div class="gef-actions">
+          <button class="btn-save-game" onclick="saveEditGame('${g.id}')">Save Changes</button>
+          <button class="btn-cancel-game" onclick="closeEditForm('${g.id}')">Cancel</button>
+          <span class="gef-msg" id="ei-msg-${g.id}"></span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function metricLabel(m){
+  const map={ac_kwh:'AC kWh',offpeak_pct:'Off-Peak %',dryer_kwh:'Dryer loads',total_kwh:'Total kWh',carbon:'Carbon kg',community:'Community',duel:'1v1 Duel'};
+  return map[m]||m;
+}
+
+function openEditForm(id){
+  document.querySelectorAll('.game-edit-form').forEach(f=>f.style.display='none');
+  document.getElementById(`form-${id}`).style.display='block';
+  document.getElementById(`form-${id}`).scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function closeEditForm(id){document.getElementById(`form-${id}`).style.display='none'}
+
+function saveEditGame(id){
+  const games=getGames();
+  const idx=games.findIndex(g=>g.id===id);
+  if(idx===-1) return;
+  games[idx]={
+    ...games[idx],
+    icon:document.getElementById(`ei-icon-${id}`).value.trim()||'🎯',
+    title:document.getElementById(`ei-title-${id}`).value.trim(),
+    description:document.getElementById(`ei-desc-${id}`).value.trim(),
+    metric:document.getElementById(`ei-metric-${id}`).value,
+    target:+document.getElementById(`ei-target-${id}`).value||0,
+    duration:+document.getElementById(`ei-duration-${id}`).value||7,
+    points:+document.getElementById(`ei-points-${id}`).value||0,
+    difficulty:document.getElementById(`ei-diff-${id}`).value,
+    time:document.getElementById(`ei-time-${id}`).value.trim(),
+  };
+  saveGames(games);
+  const msg=document.getElementById(`ei-msg-${id}`);
+  msg.textContent='✓ Saved!';
+  setTimeout(()=>{msg.textContent='';renderGames();},1000);
+}
+
+function toggleActive(id){
+  const games=getGames();
+  const g=games.find(g=>g.id===id);
+  if(g) g.active=!g.active;
+  saveGames(games);
+  renderGames();
+}
+
+function deleteGame(id){
+  if(!confirm('Delete this game? Homeowners will no longer see it on their dashboard.')) return;
+  saveGames(getGames().filter(g=>g.id!==id));
+  renderGames();
+}
+
+function openNewGamePanel(){
+  document.getElementById('new-game-panel').style.display='block';
+  document.getElementById('new-game-panel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closeNewGamePanel(){
+  document.getElementById('new-game-panel').style.display='none';
+  ['ng-icon','ng-title','ng-desc','ng-target','ng-time'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ng-points').value='500';
+  document.getElementById('ng-duration').value='7';
+  document.getElementById('ng-msg').textContent='';
+}
+
+function saveNewGame(){
+  const title=document.getElementById('ng-title').value.trim();
+  const desc=document.getElementById('ng-desc').value.trim();
+  const msg=document.getElementById('ng-msg');
+  if(!title){msg.textContent='⚠ Title is required.';msg.style.color='var(--red)';return}
+  if(!desc){msg.textContent='⚠ Description is required.';msg.style.color='var(--red)';return}
+  const games=getGames();
+  const newGame={
+    id:'g'+Date.now(),
+    icon:document.getElementById('ng-icon').value.trim()||'🎯',
+    title,description:desc,
+    metric:document.getElementById('ng-metric').value,
+    target:+document.getElementById('ng-target').value||0,
+    duration:+document.getElementById('ng-duration').value||7,
+    points:+document.getElementById('ng-points').value||500,
+    difficulty:document.getElementById('ng-diff').value,
+    time:document.getElementById('ng-time').value.trim(),
+    active:true,
+  };
+  games.push(newGame);
+  saveGames(games);
+  msg.textContent='✓ Game added!';msg.style.color='var(--green)';
+  setTimeout(()=>{closeNewGamePanel();renderGames();},800);
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+if(localStorage.getItem('bidgely_admin_auth')==='1'){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('admin-app').style.display='block';
+  updateSummary();
+  renderGames();
+}
+</script>
+</body>
+</html>
